@@ -4,3 +4,5 @@ __pycache__
 result
 freenovel
 *.log
+test*
+crawled

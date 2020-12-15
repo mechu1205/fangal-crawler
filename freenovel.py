@@ -6,6 +6,8 @@ import os
 
 from format_filename import formatFilename
 
+# Use this file to crawl fangal.org/freenovel and fangal.org/longstory
+
 def get_indent(item):
     # item: bs4.element.Tag object
     try:
@@ -38,14 +40,16 @@ def formatComments(replyList):
         try:
             commenter = item.find('h4', class_='header').get_text().strip()
             date_, time_, ipAddress = item.find('p', class_='meta').get_text().split()
-            comment = item.find('div', class_='itemContent').find('div', recursive=False).get_text()
+            xe_content = item.find('div', class_='itemContent').select_one('div[class$="xe_content"]')
             indentations = get_indent(item)
             
             if indentations:
                 content += indent*(indentations-1) + firstindent + '{} ({}) | {} {}'.format(commenter, ipAddress, date_, time_)
-                content += '\n' + indent*indentations + comment
             else:
-                content += '{} ({}) | {} {}\n{}'.format(commenter, ipAddress, date_, time_, comment)
+                content += '{} ({}) | {} {}'.format(commenter, ipAddress, date_, time_)
+            
+            content += '\n' + indent*indentations + xe_content.get_text('\n' + indent*indentations)
+        
         except Exception as e:
             logging.warning('Failed to correctly format comment\n'+str(e))
             
@@ -60,10 +64,8 @@ def get_content(boardReadBody):
     errorMsg = '본문을 불러오는 과정에서 오류가 발생하였습니다.'
     
     try:
-        xe_contents = boardReadBody.select('div[class$="xe_content"]')
-        if len(xe_contents):
-            xe_content = xe_contents[0]
-            
+        xe_content = boardReadBody.select_one('div[class$="xe_content"]')
+        if len(xe_content):
             document_contents = []
             for content in xe_content.childGenerator():
                 if 'get_text' in dir(content):
@@ -174,7 +176,7 @@ def listItemHandler(trItem):
         href = titleClass.find('a', href=True)
         if href: href = href['href']
         else: href = ''
-        # /index.php?mid=freenovel&page=150&document_srl=NUM
+        # /index.php?mid=freenovel&page=PAGENUM&document_srl=DOCNUM
         
         n_comments = 0
         if len(titleClass.find_all('a'))>1:
@@ -194,20 +196,20 @@ def listItemHandler(trItem):
         
     return num, category, title, n_comments, author, date_, views, href
 
-def crawlFreenovel(dir_target):
-    logging.info('Crawling fangal.org/freenovel')
+def crawlBoard(dir_target, board_title):
+    logging.info('Crawling fangal.org/{}'.format(board_title))
     try:
         if not os.path.exists(dir_target): os.mkdir(dir_target)
         
         url_main = 'http://fangal.org'
         
-        pageno = 167
+        pageno =0
         reached_blankpage = False
         
         while(not reached_blankpage):
             pageno += 1
             
-            url_list = 'http://fangal.org/index.php?mid=freenovel&page={}'.format(int(pageno))
+            url_list = 'http://fangal.org/index.php?mid={}&page={}'.format(board_title, int(pageno))
             
             ses = requests.Session()
             req = ses.get(url_list)
@@ -229,7 +231,7 @@ def crawlFreenovel(dir_target):
                     logging.warning('Cannot open the following entry in pagelist:\n{} - {} - {}'.format(num, title, author))
                 elif num or reached_blankpage:
                     url_page = url_main + href
-                    filename = formatFilename(num, category, title, n_comments, author, date_, views)
+                    filename = formatFilename(num, title, author, category=category)
                     
                     with open(os.path.join(dir_target, filename), 'wt', encoding='utf-8') as f:
                         f.write(pageContent(url_page))
@@ -237,8 +239,8 @@ def crawlFreenovel(dir_target):
         logging.info('Successfully finished crawling.')
     
     except Exception as e:
-        logging.critical('An error occured during crawling freenovel and the crawler has aborted.\n'+str(e))
+        logging.critical('An error has occured during crawling {} and the crawler has aborted.\n'.format(board_title)+str(e))
 
 if __name__ == '__main__':
     logging.basicConfig(filename='freenovel.log', level=logging.INFO)
-    crawlFreenovel('freenovel')
+    crawlBoard('freenovel', 'freenovel')
