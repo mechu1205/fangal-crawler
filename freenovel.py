@@ -1,4 +1,5 @@
 from bs4 import BeautifulSoup as bs
+from bs4 import Comment, Tag, NavigableString
 import requests
 import re
 import logging
@@ -65,12 +66,14 @@ def get_content(boardReadBody):
     
     try:
         xe_content = boardReadBody.select_one('div[class$="xe_content"]')
-        if len(xe_content):
+        if xe_content:
             document_contents = []
             for content in xe_content.childGenerator():
-                if 'get_text' in dir(content):
+                if isinstance(content, Comment):
+                    None
+                elif isinstance(content, Tag):
                     document_contents.append(content.get_text())
-                else:
+                elif isinstance(content, NavigableString):
                     document_contents.append(str(content))
             document_content = '\n'.join(document_contents[:-1])
             # all contents except '이 게시물을'
@@ -199,14 +202,16 @@ def listItemHandler(trItem):
 def crawlBoard(dir_target, board_title):
     logging.info('Crawling fangal.org/{}'.format(board_title))
     try:
+        dir_target = os.path.normpath(dir_target)
         if not os.path.exists(dir_target): os.mkdir(dir_target)
         
         url_main = 'http://fangal.org'
         
-        pageno =0
+        pageno = 0
         reached_blankpage = False
+        crawled_notice = False
         
-        while(not reached_blankpage):
+        while(not reached_blankpage or not crawled_notice):
             pageno += 1
             
             url_list = 'http://fangal.org/index.php?mid={}&page={}'.format(board_title, int(pageno))
@@ -220,8 +225,7 @@ def crawlBoard(dir_target, board_title):
             soup = soup.find('tbody')
             
             trItems = list(soup.find_all('tr'))
-            
-            reached_blankpage = (len(trItems) <= 1)
+            found_nonNotice = False
             
             for trItem in trItems:
                 num, category, title, n_comments, author, date_, views, href = listItemHandler(trItem)
@@ -229,12 +233,15 @@ def crawlBoard(dir_target, board_title):
                 
                 if not href:
                     logging.warning('Cannot open the following entry in pagelist:\n{} - {} - {}'.format(num, title, author))
-                elif num or reached_blankpage:
+                elif num or not crawled_notice:
+                    if num: found_nonNotice = True
                     url_page = url_main + href
-                    filename = formatFilename(num, title, author, category=category)
-                    
+                    filename = formatFilename(num, title, author)
                     with open(os.path.join(dir_target, filename), 'wt', encoding='utf-8') as f:
                         f.write(pageContent(url_page))
+            
+            crawled_notice = True
+            reached_blankpage = not found_nonNotice
         
         logging.info('Successfully finished crawling.')
     
@@ -243,4 +250,6 @@ def crawlBoard(dir_target, board_title):
 
 if __name__ == '__main__':
     logging.basicConfig(filename='freenovel.log', level=logging.INFO)
-    crawlBoard('freenovel', 'freenovel')
+    crawlBoard('crawled/freenovel', 'freenovel')
+    logging.basicConfig(filename='longstory.log', level=logging.INFO)
+    crawlBoard('crawled/longstory', 'longstory')

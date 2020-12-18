@@ -7,48 +7,14 @@ import os
 
 from format_filename import formatFilename
 
-# Use this file to crawl fangal.org/free_review
+# Use this file to crawl fangal.org/short
 
-def formatComments(cmtPosition):
-    # replyList: bs4.element.Tag object
-    contents = []
-    
-    try:
-        if cmtPosition:
-            header = cmtPosition.select_one('a[class^="nametag"]').get_text()
-            items = list(cmtPosition.select('li[id^="comment_"]'))
-        else:
-            header = "Comment '0'"
-            items = []
-    
-    except Exception as e:
-        logging.warning('Failed to retrieve comment section\n'+str(e))
-        items = []
-    
-    for item in items:
-        content = ''
-        try:
-            commenter = item.find('div', class_='meta').find('a').get_text().strip()
-            timestamp = item.find('span', class_='date').get_text().strip()
-            content = '{} | {}'.format(commenter, timestamp)
-            
-            content += '\n' + item.select_one('div[class$="xe_content"]').get_text('\n')
-            
-        except Exception as e:
-            logging.warning('Failed to correctly format comment\n'+str(e))
-            
-        contents.append(content)
-    
-    header = '\n---\n\n댓글({})\n\n'.format(len(contents))
-    
-    return header + '\n\n'.join(contents)
-
-def get_content(rd_body):
+def get_content(readBody):
     
     errorMsg = '본문을 불러오는 과정에서 오류가 발생하였습니다.'
     
     try:
-        xe_content = rd_body.select_one('div[class$="xe_content"]')
+        xe_content = readBody.select_one('div[class$="xe_content"]')
         
         document_contents = []
         for content in xe_content.childGenerator():
@@ -58,7 +24,8 @@ def get_content(rd_body):
                 document_contents.append(content.get_text())
             elif isinstance(content, NavigableString):
                 document_contents.append(str(content))
-        document_content = '\n'.join(document_contents)
+        document_content = '\n'.join(document_contents[:-1])
+        # all contents except '이 게시물을'
     
     except Exception as e:
         logging.warning('Failed to retrieve body content\n'+str(e))
@@ -66,31 +33,22 @@ def get_content(rd_body):
     
     return document_content
 
-def formatDocumentHeader(rd_hd):
+def formatDocumentHeader(readHeader):
     
     errorMsg = '헤더를 조합하는 과정에서 오류가 발생하였습니다.'
     
     try:
-        top_area = rd_hd.select_one('div[class^="top_area"]')
-        timestamp = top_area.find('span', class_='date m_no').get_text().strip()
-        # yyyy.MM.dd hh:mm
-        ahref = top_area.find('a', href=True)
-        link = ahref['href']
-        title = ahref.get_text()
+        titleAndUser = readHeader.find('div', class_='titleAndUser')
+        title = titleAndUser.find('div', class_='title').get_text().strip()
+        author = titleAndUser.find('div', class_='author').get_text().strip()
         
-        btm_area = rd_hd.select_one('div[class^="btm_area"]')
-        author = btm_area.find('div').get_text().strip()
+        dateAndCount = readHeader.find('div', class_='dateAndCount')
+        uri = dateAndCount.find('div', class_='uri').get_text().strip()
+        timestamp = dateAndCount.find('div', class_='date').get_text().strip()
+        views = int(dateAndCount.find('div', class_='readedCount').get_text())
         
-        spans = list(btm_area.find_all('span'))
-        views = spans[0].find('b').get_text().strip()
-        # views = int(views) if views else 0
-        upvotes = spans[1].find('b').get_text().strip()
-        # upvotes = int(upvotes) if upvotes else 0
-        n_comments = spans[2].find('b').get_text().strip()
-        # n_comments = int(n_comments) if n_comments else 0
-        
-        header = '{}\n{} | {}\n조회 수 {} 추천 수 {} 댓글 {}\n{}\n\n---\n\n'.format(
-            title, author, timestamp, views, upvotes, n_comments, link
+        header = '{}\n{} | {}\n조회 수 {}\n{}\n\n---\n\n'.format(
+            title, author, timestamp, views, uri
         )
         
     except Exception as e:
@@ -100,11 +58,13 @@ def formatDocumentHeader(rd_hd):
     return header
 
 def pageContent(url, get_comments=True):
+    # fangal.org/short does not support comments
+    # fangal.org/fgnovel supports comments
     
     errorMsg = '다음 페이지의 내용을 불러오는 과정에서 오류가 발생하였습니다.\n{}'.format(url)
     
     logging.info(
-        'Crawling {} with{} comments'.format(url, ('' if get_comments else 'out'))
+        'Crawling {}'.format(url, )
     )
     
     try:
@@ -113,19 +73,15 @@ def pageContent(url, get_comments=True):
         html = req.text
         soup = bs(html, "html.parser")
         
-        rd = soup.find('div', class_='rd clear')
+        boardRead = soup.find('div', class_='boardRead')
         
-        rd_hd = rd.find('div', class_='rd_hd clear')
-        header = formatDocumentHeader(rd_hd)
+        readHeader = boardRead.find('div', class_='readHeader')
+        header = formatDocumentHeader(readHeader)
         
-        rd_body = rd.find('div', class_='rd_body clear')
-        document_content = get_content(rd_body)
+        readBody = boardRead.find('div', class_='readBody')
+        document_content = get_content(readBody)
         
         pageContent = header + document_content
-        
-        if get_comments:
-            cmtPosition = soup.find('div', id='cmtPosition')
-            pageContent += formatComments(cmtPosition)
     
     except Exception as e:
         logging.warning('Failed to retrieve page content from {}\n'.format(url)+str(e))
@@ -135,8 +91,9 @@ def pageContent(url, get_comments=True):
 
 def listItemHandler(trItem):
     try:
-        num = trItem.find('td', class_='no')
+        num = trItem.find('td', class_='num')
         if num: num = int(num.get_text())
+        elif trItem.find('td', class_='notice'): num = 0
         else: num = -1
         
         titleClass = trItem.find('td', class_='title')
@@ -147,13 +104,11 @@ def listItemHandler(trItem):
         # /index.php?mid=freenovel&page=PAGENUM&document_srl=DOCNUM
         
         n_comments = 0
-        if titleClass.find('a', class_='replyNum'):
-            n_comments = int(titleClass.find('a', class_='replyNum').get_text())
         
         author = trItem.find('td', class_='author').get_text().strip()
-        date_ = trItem.find('td', class_='time').get_text().strip()
-        # yyyy.mm.dd
-        views = trItem.find('td', class_='m_no').get_text().strip()
+        date_ = trItem.find('td', class_='date').get_text().strip()
+        # yyyy-mm-dd
+        views = trItem.find('td', class_='reading').get_text().strip()
         if views: views = int(views)
         else: views = 0
     
@@ -184,7 +139,7 @@ def crawlBoard(dir_target, board_title):
             req = ses.get(url_list)
             html = req.text
             
-            soup = bs(html, "html.parser").find('div', class_='bd_lst_wrp')
+            soup = bs(html, "html.parser").find('div', id='body')
             soup = soup.find('table')
             soup = soup.find('tbody')
             
@@ -206,12 +161,12 @@ def crawlBoard(dir_target, board_title):
             
             crawled_notice = True
             reached_blankpage = not found_nonNotice
-        
+            
         logging.info('Successfully finished crawling.')
     
     except Exception as e:
         logging.critical('An error has occured during crawling {} and the crawler has aborted.\n'.format(board_title)+str(e))
 
 if __name__ == '__main__':
-    logging.basicConfig(filename='free_review.log', level=logging.INFO)
-    crawlBoard('free_review', 'free_review')
+    logging.basicConfig(filename='short.log', level=logging.INFO)
+    crawlBoard('crawled/short', 'short')
