@@ -11,15 +11,14 @@ from format_filename import formatFilename
 
 def get_indent(item):
     # item: bs4.element.Tag object
+    indents = 0
     try:
         soup_indent = item.find('div', class_='indent', style=True)
         if soup_indent:
-            return int(re.findall(r'\d+', soup_indent['style'])[0])//15
-        else:
-            return 0
+            indents = int(re.findall(r'\d+', soup_indent['style'])[0])//15
     except Exception as e:
         logging.warning('Failed to retrieve correct number of indentations for comment\n'+str(e))
-        return 0
+    return indents
 
 def formatComments(replyList):
     # replyList: bs4.element.Tag object
@@ -72,9 +71,9 @@ def get_content(boardReadBody):
                 if isinstance(content, Comment):
                     None
                 elif isinstance(content, Tag):
-                    document_contents.append(content.get_text())
+                    document_contents.append(str(content.get_text()).strip())
                 elif isinstance(content, NavigableString):
-                    document_contents.append(str(content))
+                    document_contents.append(str(content).strip())
             document_content = '\n'.join(document_contents[:-1])
             # all contents except '이 게시물을'
         else:
@@ -194,16 +193,16 @@ def listItemHandler(trItem):
         else: views = 0
     
     except Exception as e:
-        logging.warning('Failed to parse table entry on pagelist\n'+trItem+'\n'+str(e))
+        logging.warning('Failed to parse table entry on pagelist\n'+'\n'+str(e))
         num, category, title, n_comments, author, date_, views, href = -1, None, 'ERROR', 0, 'UNKNOWN', '0000-00-00', 0, ''
         
     return num, category, title, n_comments, author, date_, views, href
 
-def crawlBoard(dir_target, board_title):
+def crawlBoard(dir_target, board_title, get_comments=True):
     logging.info('Crawling fangal.org/{}'.format(board_title))
     try:
         dir_target = os.path.normpath(dir_target)
-        if not os.path.exists(dir_target): os.mkdir(dir_target)
+        if not os.path.exists(dir_target): os.makedirs(dir_target)
         
         url_main = 'http://fangal.org'
         
@@ -238,7 +237,7 @@ def crawlBoard(dir_target, board_title):
                     url_page = url_main + href
                     filename = formatFilename(num, title, author)
                     with open(os.path.join(dir_target, filename), 'wt', encoding='utf-8') as f:
-                        f.write(pageContent(url_page))
+                        f.write(pageContent(url_page, get_comments=True))
             
             crawled_notice = True
             reached_blankpage = not found_nonNotice
@@ -249,7 +248,8 @@ def crawlBoard(dir_target, board_title):
         logging.critical('An error has occured during crawling {} and the crawler has aborted.\n'.format(board_title)+str(e))
 
 if __name__ == '__main__':
-    logging.basicConfig(filename='freenovel.log', level=logging.INFO)
-    crawlBoard('crawled/freenovel', 'freenovel')
-    logging.basicConfig(filename='longstory.log', level=logging.INFO)
-    crawlBoard('crawled/longstory', 'longstory')
+    # logging.basicConfig(filename='freenovel.log', level=logging.INFO)
+    # crawlBoard('crawled/freenovel', 'freenovel')
+    # logging.basicConfig(filename='longstory.log', level=logging.INFO)
+    # crawlBoard('crawled/longstory', 'longstory')
+    print(pageContent('http://fangal.org/freenovel/620097'))

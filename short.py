@@ -9,6 +9,66 @@ from format_filename import formatFilename
 
 # Use this file to crawl fangal.org/short
 
+def get_indent(replyItem):
+    # replyItem: bs4.element.Tag object
+    indents = 0
+    try:
+        replyIndent = replyItem.find('div', class_='replyIndent', style=True)
+        if replyIndent:
+            indents = 1 + int(re.findall(r'\d+', replyIndent['style'])[0])//20
+    except Exception as e:
+        logging.warning('Failed to retrieve correct number of indentations for comment\n'+str(e))
+    return indents
+
+def formatComments(replyBox):
+    # replyBox: bs4.element.Tag object
+    contents = []
+    indent = '  '
+    firstindent = '└ '
+    
+    try:
+        if replyBox:
+            replyItems = replyBox.select('div[class^="replyItem"]')
+        else:
+            replyItems = []
+    
+    except Exception as e:
+        logging.warning('Failed to retrieve comment section\n'+str(e))
+        replyItems = []
+    
+    for replyItem in replyItems:
+        content = ''
+        try:
+            commenter = replyItem.find('div', class_='author').get_text().strip()
+            timestamp = replyItem.find('div', class_='date').get_text().strip()
+            xe_content = replyItem.select_one('div[class$="xe_content"]')
+            comment_contents = []
+            for content in xe_content.childGenerator():
+                if isinstance(content, Comment):
+                    None
+                elif isinstance(content, Tag):
+                    comment_contents.append(str(content.get_text()).strip())
+                elif isinstance(content, NavigableString):
+                    comment_contents.append(str(content).strip())
+            # all contents except '이 댓글을'
+            
+            indentations = get_indent(replyItem)
+            
+            content = '{} | {}'.format(commenter, timestamp)
+            if indentations:
+                content = indent*(indentations-1) + firstindent + content
+            
+            content += '\n' + indent*indentations + ('\n' + indent*indentations).join(comment_contents)
+        
+        except Exception as e:
+            logging.warning('Failed to correctly format comment\n'+str(e))
+            
+        contents.append(content)
+    
+    header = '\n---\n\n댓글({})\n\n'.format(len(contents))
+    
+    return header + '\n\n'.join(contents)
+
 def get_content(readBody):
     
     errorMsg = '본문을 불러오는 과정에서 오류가 발생하였습니다.'
@@ -82,6 +142,9 @@ def pageContent(url, get_comments=True):
         document_content = get_content(readBody)
         
         pageContent = header + document_content
+        if get_comments:
+            replyBox = soup.find('div', class_='replyBox')
+            pageContent += formatComments(replyBox)
     
     except Exception as e:
         logging.warning('Failed to retrieve page content from {}\n'.format(url)+str(e))
@@ -102,6 +165,9 @@ def listItemHandler(trItem):
         if href: href = href['href']
         else: href = ''
         # /index.php?mid=freenovel&page=PAGENUM&document_srl=DOCNUM
+        category = titleClass.find('strong', class_='category')
+        if category: category = category.get_text().strip()
+        else: category = ''
         
         n_comments = 0
         
@@ -113,16 +179,16 @@ def listItemHandler(trItem):
         else: views = 0
     
     except Exception as e:
-        logging.warning('Failed to parse table entry on pagelist\n'+trItem+'\n'+str(e))
-        num, title, n_comments, author, date_, views, href = -1, 'ERROR', 0, 'UNKNOWN', '0000.00.00', 0, ''
+        logging.warning('Failed to parse table entry on pagelist\n'+'\n'+str(e))
+        num, category, title, n_comments, author, date_, views, href = -1, '', 'ERROR', 0, 'UNKNOWN', '0000.00.00', 0, ''
         
-    return num, title, n_comments, author, date_, views, href
+    return num, category, title, n_comments, author, date_, views, href
 
-def crawlBoard(dir_target, board_title):
+def crawlBoard(dir_target, board_title, get_comments=True):
     logging.info('Crawling fangal.org/{}'.format(board_title))
     try:
         dir_target = os.path.normpath(dir_target)
-        if not os.path.exists(dir_target): os.mkdir(dir_target)
+        if not os.path.exists(dir_target): os.makedirs(dir_target)
         
         url_main = 'http://fangal.org'
         
@@ -147,7 +213,7 @@ def crawlBoard(dir_target, board_title):
             found_nonNotice = False
             
             for trItem in trItems:
-                num, title, n_comments, author, date_, views, href = listItemHandler(trItem)
+                num, category, title, n_comments, author, date_, views, href = listItemHandler(trItem)
                 # num==0 is notice. num<0 or href=='' means there was an error in listItemHandler.
                 
                 if not href:
@@ -155,9 +221,9 @@ def crawlBoard(dir_target, board_title):
                 elif num or not crawled_notice:
                     if num: found_nonNotice = True
                     url_page = url_main + href
-                    filename = formatFilename(num, title, author)
+                    filename = formatFilename(num, title, author, category=category)
                     with open(os.path.join(dir_target, filename), 'wt', encoding='utf-8') as f:
-                        f.write(pageContent(url_page))
+                        f.write(pageContent(url_page, get_comments=get_comments))
             
             crawled_notice = True
             reached_blankpage = not found_nonNotice
@@ -168,5 +234,17 @@ def crawlBoard(dir_target, board_title):
         logging.critical('An error has occured during crawling {} and the crawler has aborted.\n'.format(board_title)+str(e))
 
 if __name__ == '__main__':
-    logging.basicConfig(filename='short.log', level=logging.INFO)
-    crawlBoard('crawled/short', 'short')
+    boards = {
+        # 'boardname': comments_supported (bool)
+        'short': False,
+        'fgnovel': True,
+        'invitation': False,
+        'fssf': True,
+        'fsf': True,
+        'fgcf': True,
+        'fhf': True,
+        'fgproject': True
+    }
+    for board in boards:
+        logging.basicConfig(filename = '{}.log'.format(board), level=logging.INFO)
+        crawlBoard('crawled/{}'.format(board), '{}'.format(board), get_comments=boards[board])

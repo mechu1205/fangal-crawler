@@ -55,9 +55,9 @@ def get_content(rd_body):
             if isinstance(content, Comment):
                 None
             elif isinstance(content, Tag):
-                document_contents.append(content.get_text())
+                document_contents.append(str(content.get_text()).strip())
             elif isinstance(content, NavigableString):
-                document_contents.append(str(content))
+                document_contents.append(str(content).strip())
         document_content = '\n'.join(document_contents)
     
     except Exception as e:
@@ -158,16 +158,16 @@ def listItemHandler(trItem):
         else: views = 0
     
     except Exception as e:
-        logging.warning('Failed to parse table entry on pagelist\n'+trItem+'\n'+str(e))
+        logging.warning('Failed to parse table entry on pagelist\n'+'\n'+str(e))
         num, title, n_comments, author, date_, views, href = -1, 'ERROR', 0, 'UNKNOWN', '0000.00.00', 0, ''
         
     return num, title, n_comments, author, date_, views, href
 
-def crawlBoard(dir_target, board_title):
+def crawlBoard(dir_target, board_title, get_comments=True):
     logging.info('Crawling fangal.org/{}'.format(board_title))
     try:
         dir_target = os.path.normpath(dir_target)
-        if not os.path.exists(dir_target): os.mkdir(dir_target)
+        if not os.path.exists(dir_target): os.makedirs(dir_target)
         
         url_main = 'http://fangal.org'
         
@@ -202,7 +202,7 @@ def crawlBoard(dir_target, board_title):
                     url_page = url_main + href
                     filename = formatFilename(num, title, author)
                     with open(os.path.join(dir_target, filename), 'wt', encoding='utf-8') as f:
-                        f.write(pageContent(url_page))
+                        f.write(pageContent(url_page, get_comments=get_comments))
             
             crawled_notice = True
             reached_blankpage = not found_nonNotice
