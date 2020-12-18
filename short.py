@@ -65,7 +65,7 @@ def formatComments(replyBox):
             
         contents.append(content)
     
-    header = '\n---\n\n댓글({})\n\n'.format(len(contents))
+    header = '\n\n---\n댓글({})\n\n'.format(len(contents))
     
     return header + '\n\n'.join(contents)
 
@@ -255,8 +255,13 @@ if __name__ == '__main__':
         'fsf': True,
         'fgcf': True,
         'fhf': True,
-        'fgproject': True
+        'fgproject': True,
+        'old': True,
+        'proposal': True,
+        'notice': False,
     }
     for board in boards:
+        log = logging.getLogger()
+        for hdlr in log.handlers: log.removeHandler(hdlr)
         logging.basicConfig(filename = '{}.log'.format(board), level=logging.INFO)
         crawlBoard('crawled/{}'.format(board), '{}'.format(board), get_comments=boards[board])

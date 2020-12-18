@@ -39,7 +39,7 @@ def formatComments(cmtPosition):
             
         contents.append(content)
     
-    header = '\n---\n\n댓글({})\n\n'.format(len(contents))
+    header = '\n\n---\n댓글({})\n\n'.format(len(contents))
     
     return header + '\n\n'.join(contents)
 

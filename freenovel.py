@@ -55,7 +55,7 @@ def formatComments(replyList):
             
         contents.append(content)
     
-    header = '\n---\n\n댓글({})\n\n'.format(len(contents))
+    header = '\n\n---\n댓글({})\n\n'.format(len(contents))
     
     return header + '\n\n'.join(contents)
 
@@ -248,8 +248,9 @@ def crawlBoard(dir_target, board_title, get_comments=True):
         logging.critical('An error has occured during crawling {} and the crawler has aborted.\n'.format(board_title)+str(e))
 
 if __name__ == '__main__':
-    # logging.basicConfig(filename='freenovel.log', level=logging.INFO)
-    # crawlBoard('crawled/freenovel', 'freenovel')
-    # logging.basicConfig(filename='longstory.log', level=logging.INFO)
-    # crawlBoard('crawled/longstory', 'longstory')
-    print(pageContent('http://fangal.org/freenovel/620097'))
+    boards = ['freenovel', 'longstory']
+    for board in boards:
+        log = logging.getLogger()
+        for hdlr in log.handlers: log.removeHandler(hdlr)
+        logging.basicConfig(filename = '{}.log'.format(board), level=logging.INFO)
+        crawlBoard('crawled/{}'.format(board), '{}'.format(board), get_comments=boards[board])
