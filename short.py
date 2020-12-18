@@ -107,9 +107,21 @@ def formatDocumentHeader(readHeader):
         timestamp = dateAndCount.find('div', class_='date').get_text().strip()
         views = int(dateAndCount.find('div', class_='readedCount').get_text())
         
-        header = '{}\n{} | {}\n조회 수 {}\n{}\n\n---\n\n'.format(
-            title, author, timestamp, views, uri
+        votedCount = readHeader.find('div', class_='votedCount')
+        if votedCount: votedCount = str(votedCount.get_text()).strip()
+        
+        # replyCount = readHeader.find('div', class_='replyCount')
+        # if replyCount: comments = str(replyCount.get_text()).strip()
+        # else: replyCount = ''
+        
+        header = '{}\n{} | {}\n조회 수 {}'.format(
+            title, author, timestamp, views
         )
+        
+        if votedCount: header += ' 추천 수 {}'.format(votedCount)
+        # if replyCount: header += ' 댓글 수 {}'.format(replyCount)
+        
+        header += '\n{}\n\n---\n\n'.format(uri)
         
     except Exception as e:
         logging.warning('Failed to format document header\n'+str(e))
