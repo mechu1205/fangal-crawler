@@ -253,4 +253,4 @@ if __name__ == '__main__':
         log = logging.getLogger()
         for hdlr in log.handlers: log.removeHandler(hdlr)
         logging.basicConfig(filename = '{}.log'.format(board), level=logging.INFO)
-        crawlBoard('crawled/{}'.format(board), '{}'.format(board), get_comments=boards[board])
+        crawlBoard('crawled/{}'.format(board), '{}'.format(board), get_comments=True)

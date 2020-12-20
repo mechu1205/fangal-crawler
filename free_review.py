@@ -214,4 +214,4 @@ def crawlBoard(dir_target, board_title, get_comments=True):
 
 if __name__ == '__main__':
     logging.basicConfig(filename='free_review.log', level=logging.INFO)
-    crawlBoard('free_review', 'free_review')
+    crawlBoard('crawled/free_review', 'free_review')

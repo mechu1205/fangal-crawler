@@ -259,6 +259,8 @@ if __name__ == '__main__':
         'old': True,
         'proposal': True,
         'notice': False,
+        'critic': True,
+        'reading': True,
     }
     for board in boards:
         log = logging.getLogger()
