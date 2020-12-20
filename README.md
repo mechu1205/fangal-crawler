@@ -13,6 +13,7 @@
 <br>다음 게시판(들)은 short.py를 통해 크롤링할 수 있습니다.
 <br>* 공지사항 (http://fangal.org/notice)
 <br>* 건의사항 (http://fangal.org/proposal)
+<br>* 장편 연재란 (http://fangal.org/novel)
 <br>* 단편 게시판 (http://fangal.org/short)
 <br>* 초청 단편 (http://fangal.org/invitation)
 <br>* 환상회랑 작품 (http://fangal.org/fgnovel)
@@ -27,7 +28,6 @@
 <br>
 <br>다음 게시판(들)은 지원되지 않습니다.
 <br>* FAQ (http://fangal.org/faq)
-<br>* 장편 연재란 (http://fangal.org/novel)
 <br>* 한줄 감상 (http://fangal.org/oneline)
 <br>* 장르 리뷰 (http://fangal.org/review)
 <br>* 좋은 글 모음 (http://fangal.org/materials)

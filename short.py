@@ -261,9 +261,19 @@ if __name__ == '__main__':
         'notice': False,
         'critic': True,
         'reading': True,
+        'novel/gow': False,
+        'novel/beasts': False,
+        'novel/pog': False,
+        'novel/btd': False,
+        'novel/bonglim': False,
+        'novel/dow': False,
+        'novel/oblivion': False,
+        'novel/lightning': False,
+        'novel/mino': False,
     }
     for board in boards:
         log = logging.getLogger()
         for hdlr in log.handlers: log.removeHandler(hdlr)
-        logging.basicConfig(filename = '{}.log'.format(board), level=logging.INFO)
-        crawlBoard('crawled/{}'.format(board), '{}'.format(board), get_comments=boards[board])
+        board_lastname = board.split('/')[-1]
+        logging.basicConfig(filename = '{}.log'.format(board_lastname), level=logging.INFO)
+        crawlBoard('crawled/{}'.format(board), '{}'.format(board_lastname), get_comments=boards[board])
